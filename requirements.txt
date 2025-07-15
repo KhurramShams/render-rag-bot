@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+pinecone-client
+langchain
+langchain-openai
+langchain-pinecone
+requests
+pdfplumber==0.11.4
+python-multipart
+pydantic
