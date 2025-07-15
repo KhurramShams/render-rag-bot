@@ -9,6 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 import hashlib
 import pdfplumber
+from io import BytesIO
 
 load_dotenv()
 
@@ -69,26 +70,6 @@ def initialize_llm(api_key):
         logger.error(f"Error initializing LLM: {str(e)}")
         raise
 
-# --- helper to ensure the correct fitz/PyMuPDF is loaded
-# def _get_pymupdf():
-#     """
-#     Return the real PyMuPDF module. If the wrong 'fitz' package is installed,
-#     raise an ImportError with a helpful hint.
-#     """
-#     try:
-#         import fitz  # PyMuPDF installs under the name 'fitz'
-#         if not hasattr(fitz, "open"):          # wrong package gives this away
-#             raise ImportError(
-#                 "Found a stub 'fitz' package without 'open()'. "
-#                 "Uninstall it and install PyMuPDF:  pip uninstall -y fitz && pip install --upgrade PyMuPDF"
-#             )
-#         return fitz
-#     except ModuleNotFoundError:
-#         raise ImportError(
-#             "PyMuPDF not installed. Install it with:  pip install PyMuPDF"
-#         )
-
-
 def store_chunks_in_pinecone(chunks, embedding_function, index_name="rag-index", pdf_hash="unknown"):
     try:
         metadatas = [{"doc_hash": pdf_hash, "chunk_id": i} for i in range(len(chunks))]
@@ -106,8 +87,7 @@ def store_chunks_in_pinecone(chunks, embedding_function, index_name="rag-index",
 
 def validate_pdf(file_content) -> tuple[bool, str, str]:
     try:
-        # fitz = _get_pymupdf() 
-        with pdfplumber.open(file_content) as doc:
+        with pdfplumber.open(BytesIO(file_content)) as doc:
             page_count = len(doc.pages)
         
         if page_count > 5:
@@ -129,8 +109,8 @@ def validate_pdf(file_content) -> tuple[bool, str, str]:
 
 def process_pdf_and_split(file_content, chunk_size=500, chunk_overlap=50):
     try:
-        # Step 1: Read PDF with PyMuPDF
-        with pdfplumber.open(file_content) as doc:
+        # Step 1: Read PDF with pdfplumber
+        with pdfplumber.open(BytesIO(file_content)) as doc:
             full_text = ""
             for page in doc.pages:
                 text = page.extract_text() or ""
