@@ -141,10 +141,10 @@ Answer:
 """
     return ChatPromptTemplate.from_template(template)
 
-def query_llm_with_rag(query, vector_store, llm, top_k=5):
+def query_llm_with_rag(query, vector_store, llm, pdf_hash, top_k=5):
     try:
         # Retrieve relevant chunks
-        retriever = vector_store.as_retriever(search_kwargs={"k": top_k})
+        retriever = vector_store.as_retriever(search_kwargs={"k": top_k,"filter": {"doc_hash": {"$eq": pdf_hash}}})
 
         retrieved_docs = retriever.get_relevant_documents(query)
 
