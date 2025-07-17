@@ -10,6 +10,7 @@ from langchain_core.output_parsers import StrOutputParser
 import hashlib
 import pdfplumber
 from io import BytesIO
+from langchain_core.runnables import RunnableSequence
 
 load_dotenv()
 
@@ -153,8 +154,14 @@ def query_llm_with_rag(query, vector_store, llm, pdf_hash, top_k=5):
         # Create prompt and chain
         prompt_template = create_rag_prompt_template()
 
-        chain = prompt_template | llm | StrOutputParser()
-        
+        # chain = prompt_template | llm | StrOutputParser()
+         chain = RunnableSequence(
+            steps=[
+                prompt_template,
+                llm,
+                StrOutputParser()
+            ]
+        )
         # Run the chain
         response = chain.invoke({"query": query, "context": context})
         return response.strip()
