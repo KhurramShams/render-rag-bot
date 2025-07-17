@@ -90,8 +90,8 @@ def validate_pdf(file_content) -> tuple[bool, str, str]:
         with pdfplumber.open(BytesIO(file_content)) as doc:
             page_count = len(doc.pages)
         
-        if page_count > 5:
-            return False, f"PDF has {page_count} pages. Maximum allowed is 5.", ""
+        if page_count > 10:
+            return False, f"PDF has {page_count} pages. Maximum allowed is 10.", ""
 
         full_text = ""
         for page in doc.pages:
@@ -99,8 +99,8 @@ def validate_pdf(file_content) -> tuple[bool, str, str]:
                 full_text += text
         word_count = len(full_text.split())
 
-        if word_count > 10000:
-            return False, f"PDF has {word_count} words. Maximum allowed is 10,000.", ""
+        if word_count > 15000:
+            return False, f"PDF has {word_count} words. Maximum allowed is 15,000.", ""
 
         return True, "PDF is valid.", full_text
     
