@@ -107,7 +107,7 @@ def validate_pdf(file_content) -> tuple[bool, str, str]:
     except Exception as e:
         return False, f"Error reading PDF: {str(e)}", ""
 
-def process_pdf_and_split(file_content, chunk_size=500, chunk_overlap=50):
+def process_pdf_and_split(file_content, chunk_size=1000, chunk_overlap=200):
     try:
         # Step 1: Read PDF with pdfplumber
         with pdfplumber.open(BytesIO(file_content)) as doc:
@@ -117,8 +117,8 @@ def process_pdf_and_split(file_content, chunk_size=500, chunk_overlap=50):
                 full_text += text
         # Step 2: Split using LangChain's RecursiveCharacterTextSplitter
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=500,
-            chunk_overlap=100,
+            chunk_size=1000,
+            chunk_overlap=200,
             separators=["\n\n", "\n", ".", "!", "?"]
         )
 
