@@ -155,12 +155,12 @@ def query_llm_with_rag(query, vector_store, llm, pdf_hash, top_k=5):
         prompt_template = create_rag_prompt_template()
 
         # chain = prompt_template | llm | StrOutputParser()
-         chain = RunnableSequence(
+        chain = RunnableSequence(
             steps=[
                 prompt_template,
                 llm,
                 StrOutputParser()
-            ]
+                ]
         )
         # Run the chain
         response = chain.invoke({"query": query, "context": context})
