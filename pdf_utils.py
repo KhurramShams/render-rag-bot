@@ -148,7 +148,7 @@ def query_llm_with_rag(query, vector_store, llm, pdf_hash, top_k=5):
         # Retrieve relevant chunks
         retriever = vector_store.as_retriever(search_kwargs={"k": top_k,"filter": {"doc_hash": {"$eq": pdf_hash}}})
 
-        retrieved_docs = retriever.get_relevant_documents(query)
+        retrieved_docs = retriever.invoke(query)
 
         context = "\n\n".join([doc.page_content for doc in retrieved_docs]) if retrieved_docs else "No relevant context found."
         
@@ -159,11 +159,15 @@ def query_llm_with_rag(query, vector_store, llm, pdf_hash, top_k=5):
         chain = RunnableMap({
             "context": lambda _: context,
             "query": lambda _: query
-        }) | prompt | llm | StrOutputParser()
+        }) | prompt_template | llm | StrOutputParser()
+        
         # Run the chain
         response = chain.invoke({})
+        
         # response = chain.invoke({"query": query, "context": context})
+        
         return response.strip()
+        
     except Exception as e:
         return f"Error querying LLM: {str(e)}"
       
