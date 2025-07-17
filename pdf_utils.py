@@ -129,8 +129,7 @@ def process_pdf_and_split(file_content, chunk_size=500, chunk_overlap=50):
 
 def create_rag_prompt_template():
     template = """
-You are a helpful assistant. Use only the following context to answer the user's question.
-If the answer cannot be found in the context, respond with "I don't know based on the provided information."
+You are an customer support chatbot for Paragon Digicom Software Company. Use the context to answer the question. If the context lacks specific details add some information from your site to fullfill user customer question.
 
 Context:
 {context}
