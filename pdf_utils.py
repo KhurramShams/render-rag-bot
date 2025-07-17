@@ -143,7 +143,7 @@ Answer:
 """
     return ChatPromptTemplate.from_template(template)
 
-def query_llm_with_rag(query, vector_store, llm, pdf_hash, top_k=5):
+def query_llm_with_rag(query, vector_store, openai_api_key, pdf_hash, top_k=5):
     try:
         # Retrieve relevant chunks
         retriever = vector_store.as_retriever(search_kwargs={"k": top_k,"filter": {"doc_hash": {"$eq": pdf_hash}}})
@@ -157,6 +157,12 @@ def query_llm_with_rag(query, vector_store, llm, pdf_hash, top_k=5):
         
         # Create prompt and chain
         prompt_template = create_rag_prompt_template()
+
+        llm = ChatOpenAI(
+            model_name="gpt-4o-mini",
+            openai_api_key=openai_api_key,
+            temperature=0.7
+        )
 
         print(pdf_hash)
         chain = prompt_template | llm | StrOutputParser()
