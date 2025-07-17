@@ -117,8 +117,7 @@ async def ask(request: AskRequest):
             vector_store = PineconeVectorStore(
                 index_name="rag-index",
                 embedding=embedding_function,
-                namespace=None,
-                filter={"doc_hash": {"$eq": pdf_hash}}
+                namespace=None
             )
             vector_store_cache[pdf_hash] = vector_store
         except Exception as e:
@@ -126,7 +125,7 @@ async def ask(request: AskRequest):
             raise HTTPException(status_code=500, detail=f"Vector store error: {e}")
 
     try:
-        answer = query_llm_with_rag(question, vector_store, llm)
+        answer = query_llm_with_rag(question, vector_store, pdf_hash, llm)
         return {"answer": answer}
     except Exception as e:
         logger.error(f"RAG error: {e}")
