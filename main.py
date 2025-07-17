@@ -125,7 +125,7 @@ async def ask(request: AskRequest):
             raise HTTPException(status_code=500, detail=f"Vector store error: {e}")
 
     try:
-        answer = query_llm_with_rag(question, vector_store, pdf_hash, llm)
+        answer = query_llm_with_rag(question,vector_store, OPENAI_API_KEY, pdf_hash)
         
         if answer.startswith("Error querying LLM:") or answer.startswith("No relevant content"):
             return {"answer": answer}
