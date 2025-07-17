@@ -11,6 +11,7 @@ import hashlib
 import pdfplumber
 from io import BytesIO
 from langchain_core.runnables import RunnableSequence
+from langchain_core.runnables import RunnableMap
 
 load_dotenv()
 
@@ -155,15 +156,13 @@ def query_llm_with_rag(query, vector_store, llm, pdf_hash, top_k=5):
         prompt_template = create_rag_prompt_template()
 
         # chain = prompt_template | llm | StrOutputParser()
-        chain = RunnableSequence(
-            steps=[
-                prompt_template,
-                llm,
-                StrOutputParser()
-                ]
-        )
+        chain = RunnableMap({
+            "context": lambda _: context,
+            "query": lambda _: query
+        }) | prompt | llm | StrOutputParser()
         # Run the chain
-        response = chain.invoke({"query": query, "context": context})
+        response = chain.invoke({})
+        # response = chain.invoke({"query": query, "context": context})
         return response.strip()
     except Exception as e:
         return f"Error querying LLM: {str(e)}"
