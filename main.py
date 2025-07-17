@@ -126,6 +126,10 @@ async def ask(request: AskRequest):
 
     try:
         answer = query_llm_with_rag(question, vector_store, pdf_hash, llm)
+        
+        if answer.startswith("Error querying LLM:") or answer.startswith("No relevant content"):
+            return {"answer": answer}
+            
         return {"answer": answer}
     except Exception as e:
         logger.error(f"RAG error: {e}")
