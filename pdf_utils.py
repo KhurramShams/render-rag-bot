@@ -155,6 +155,7 @@ def query_llm_with_rag(query, vector_store, llm, pdf_hash, top_k=5):
         # Create prompt and chain
         prompt_template = create_rag_prompt_template()
 
+        print(pdf_hash)
         # chain = prompt_template | llm | StrOutputParser()
         chain = RunnableMap({
             "context": lambda _: context,
@@ -163,7 +164,8 @@ def query_llm_with_rag(query, vector_store, llm, pdf_hash, top_k=5):
         
         # Run the chain
         response = chain.invoke({})
-        
+        print(response)
+        print('Chain Run....')
         # response = chain.invoke({"query": query, "context": context})
         
         return response.strip()
