@@ -150,7 +150,10 @@ def query_llm_with_rag(query, vector_store, llm, pdf_hash, top_k=5):
 
         retrieved_docs = retriever.invoke(query)
 
-        context = "\n\n".join([doc.page_content for doc in retrieved_docs]) if retrieved_docs else "No relevant context found."
+        if not retrieved_docs:
+            return "No relevant content found for the provided document hash."
+
+        context = "\n\n".join([doc.page_content for doc in retrieved_docs])
         
         # Create prompt and chain
         prompt_template = create_rag_prompt_template()
