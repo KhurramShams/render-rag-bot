@@ -190,7 +190,7 @@ def query_llm_with_agent(query, vector_store, openai_api_key, pdf_hash, top_k=5)
         )
 
         prompt = ChatPromptTemplate.from_messages([
-            ("system", "You are a customer support agent for Paragon Digicom Software Company. Use the context to answer the question. If the context lacks specific details add some information from your site to fullfill user customer question. Keep your answers concise and focused. Limit responses to 2-3 sentences unless necessary."),
+            ("system", "You are a customer support agent for Paragon Digicom Software Company. Use the context to answer the question. If the context lacks specific details add some information from your site to fullfill user customer question. Keep your answers short, concise and focused."),
            ("user", "{input}\n\nCompany Website:\n" + homepage_content),
             MessagesPlaceholder(variable_name="agent_scratchpad")
         ])
