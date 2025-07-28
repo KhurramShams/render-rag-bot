@@ -10,8 +10,12 @@ from langchain_core.output_parsers import StrOutputParser
 import hashlib
 import pdfplumber
 from io import BytesIO
-from langchain_core.runnables import RunnableSequence
-from langchain_core.runnables import RunnableMap
+from langchain.agents import AgentExecutor, tool, create_openai_functions_agent
+from langchain_core.tools import Tool
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.agents import Tool, AgentExecutor, create_openai_functions_agent
+import requests
+from bs4 import BeautifulSoup
 
 load_dotenv()
 
@@ -143,38 +147,72 @@ Answer:
 """
     return ChatPromptTemplate.from_template(template)
 
-def query_llm_with_rag(query, vector_store, openai_api_key, pdf_hash, top_k=5):
+def query_llm_with_agent(query, vector_store, openai_api_key, pdf_hash, top_k=5):
     try:
-        # Retrieve relevant chunks
-        retriever = vector_store.as_retriever(search_kwargs={"k": top_k,"filter": {"doc_hash": {"$eq": pdf_hash}}})
+        retriever = vector_store.as_retriever(
+            search_kwargs={"k": top_k, "filter": {"doc_hash": {"$eq": pdf_hash}}}
+        )
+        def search_documents(q: str) -> str:
+            """Search the PDF for relevant content"""
+            docs = retriever.invoke(q)
+            if not docs:
+                return "No relevant information found in the document."
+            return "\n\n".join([doc.page_content for doc in docs])
 
-        retrieved_docs = retriever.invoke(query)
+        # Step 2: Fetch homepage content (always used)
+        def fetch_paragon_homepage() -> str:
+            url = "https://paragondigicom.com/"
+            try:
+                headers = {"User-Agent": "Mozilla/5.0"}
+                response = requests.get(url, headers=headers, timeout=5)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.text, "html.parser")
+                text = soup.get_text(separator="\n").strip()
+                return text[:2000] + "..."
+            except Exception as e:
+                return f"Error fetching homepage: {str(e)}"
 
-        if not retrieved_docs:
-            return "No relevant content found for the provided document hash."
+        homepage_content = fetch_paragon_homepage()
 
-        context = "\n\n".join([doc.page_content for doc in retrieved_docs])
-        
-        # Create prompt and chain
-        prompt_template = create_rag_prompt_template()
+        tools = [
+            Tool.from_function(
+                func=search_documents,
+                name="search_documents",
+                description="Useful for answering questions about the uploaded PDF document."
+            )
+        ]
 
+        # Build the agent
         llm = ChatOpenAI(
             model_name="gpt-4o-mini",
             openai_api_key=openai_api_key,
-            temperature=0.7
+            temperature=0.7,
         )
 
-        print(pdf_hash)
-        chain = prompt_template | llm | StrOutputParser()
-        print(chain)
-        print('Chain Run....')
-        response = chain.invoke({"query": query, "context": context})
-        logger.info(f"Retrieved {len(retrieved_docs)} documents for hash: {pdf_hash}")
-        
-        return response.strip()
-        
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are a customer support agent for Paragon Digicom Software Company. Use the context to answer the question. If the context lacks specific details add some information from your site to fullfill user customer question. Keep your answers concise and focused. Limit responses to 2-3 sentences unless necessary."),
+           ("user", "{input}\n\nCompany Website:\n" + homepage_content),
+            MessagesPlaceholder(variable_name="agent_scratchpad")
+        ])
+
+        agent = create_openai_functions_agent(
+            llm=llm,
+            tools=tools,
+            prompt=prompt
+        )
+
+        agent_executor = AgentExecutor.from_agent_and_tools(
+            agent=agent,
+            tools=tools,
+            verbose=True,
+            handle_parsing_errors=True
+        )
+        response = agent_executor.invoke({"input": query})
+        return response.get("output", "No response generated.")
+
     except Exception as e:
-        return f"Error querying LLM: {str(e)}"
+        return f"Error querying LLM agent: {str(e)}"
+
       
 def get_pdf_hash(file_bytes:bytes)->str:
     return hashlib.sha256(file_bytes).hexdigest()
