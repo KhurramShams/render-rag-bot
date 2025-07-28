@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from pdf_utils import (
     load_environment, initialize_pinecone, initialize_embeddings, initialize_llm,
     validate_pdf, process_pdf_and_split, store_chunks_in_pinecone,
-    get_pdf_hash, is_document_already_indexed, query_llm_with_rag
+    get_pdf_hash, is_document_already_indexed, query_llm_with_agent
 )
 from langchain_pinecone import PineconeVectorStore
 import logging
@@ -125,7 +125,7 @@ async def ask(request: AskRequest):
             raise HTTPException(status_code=500, detail=f"Vector store error: {e}")
 
     try:
-        answer = query_llm_with_rag(question,vector_store, OPENAI_API_KEY, pdf_hash)
+        answer = query_llm_with_agent(question,vector_store, OPENAI_API_KEY, pdf_hash)
         
         if answer.startswith("Error querying LLM:") or answer.startswith("No relevant content"):
             return {"answer": answer}
