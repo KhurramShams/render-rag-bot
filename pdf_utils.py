@@ -6,11 +6,22 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_pinecone import PineconeVectorStore
 import logging
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 import hashlib
 import pdfplumber
+from io import BytesIO
+from langchain_core.tools import Tool
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.agents import Tool, AgentExecutor, create_openai_functions_agent
+
+
 
 load_dotenv()
+
+COMPANY_NAMESPACES = {
+    "DigiRoam": "tenant_digiroam",
+    "DigiCom": "tenant_digicom",
+    "DigiTech": "tenant_digitech",
+}
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -69,36 +80,30 @@ def initialize_llm(api_key):
         logger.error(f"Error initializing LLM: {str(e)}")
         raise
 
-# --- helper to ensure the correct fitz/PyMuPDF is loaded
-# def _get_pymupdf():
-#     """
-#     Return the real PyMuPDF module. If the wrong 'fitz' package is installed,
-#     raise an ImportError with a helpful hint.
-#     """
-#     try:
-#         import fitz  # PyMuPDF installs under the name 'fitz'
-#         if not hasattr(fitz, "open"):          # wrong package gives this away
-#             raise ImportError(
-#                 "Found a stub 'fitz' package without 'open()'. "
-#                 "Uninstall it and install PyMuPDF:  pip uninstall -y fitz && pip install --upgrade PyMuPDF"
-#             )
-#         return fitz
-#     except ModuleNotFoundError:
-#         raise ImportError(
-#             "PyMuPDF not installed. Install it with:  pip install PyMuPDF"
-#         )
-
-
-def store_chunks_in_pinecone(chunks, embedding_function, index_name="rag-index", pdf_hash="unknown"):
+def store_chunks_in_pinecone(chunks, embedding_function, company_id,index_name="rag-index", pdf_hash="unknown"):
     try:
-        metadatas = [{"doc_hash": pdf_hash, "chunk_id": i} for i in range(len(chunks))]
+        if company_id not in COMPANY_NAMESPACES:
+            raise ValueError(f"Invalid company_id: {company_id}")
+
+        namespace = COMPANY_NAMESPACES[company_id]
+        print(namespace)
+        
+        # Always include company_id in metadata
+        metadatas = [
+            {"doc_hash": pdf_hash, "company_id": company_id, "chunk_id": i}
+            for i in range(len(chunks))
+        ]
+
+        
         vector_store = PineconeVectorStore.from_texts(
             texts=chunks,
             embedding=embedding_function,
             index_name=index_name,
+            namespace=namespace, 
             metadatas=metadatas
         )
-        logger.info(f"Stored {len(chunks)} chunks in Pinecone")
+
+        logger.info(f"Stored {len(chunks)} chunks in Pinecone under namespace '{namespace}'")
         return vector_store
     except Exception as e:
         logger.error(f"Error storing embeddings in Pinecone: {str(e)}")
@@ -106,12 +111,11 @@ def store_chunks_in_pinecone(chunks, embedding_function, index_name="rag-index",
 
 def validate_pdf(file_content) -> tuple[bool, str, str]:
     try:
-        # fitz = _get_pymupdf() 
-        with pdfplumber.open(file_content) as doc:
+        with pdfplumber.open(BytesIO(file_content)) as doc:
             page_count = len(doc.pages)
         
-        if page_count > 5:
-            return False, f"PDF has {page_count} pages. Maximum allowed is 5.", ""
+        if page_count > 10:
+            return False, f"PDF has {page_count} pages. Maximum allowed is 10.", ""
 
         full_text = ""
         for page in doc.pages:
@@ -119,26 +123,26 @@ def validate_pdf(file_content) -> tuple[bool, str, str]:
                 full_text += text
         word_count = len(full_text.split())
 
-        if word_count > 10000:
-            return False, f"PDF has {word_count} words. Maximum allowed is 10,000.", ""
+        if word_count > 15000:
+            return False, f"PDF has {word_count} words. Maximum allowed is 15,000.", ""
 
         return True, "PDF is valid.", full_text
     
     except Exception as e:
         return False, f"Error reading PDF: {str(e)}", ""
 
-def process_pdf_and_split(file_content, chunk_size=500, chunk_overlap=50):
+def process_pdf_and_split(file_content, chunk_size=1000, chunk_overlap=200):
     try:
-        # Step 1: Read PDF with PyMuPDF
-        with pdfplumber.open(file_content) as doc:
+        # Step 1: Read PDF with pdfplumber
+        with pdfplumber.open(BytesIO(file_content)) as doc:
             full_text = ""
             for page in doc.pages:
                 text = page.extract_text() or ""
                 full_text += text
         # Step 2: Split using LangChain's RecursiveCharacterTextSplitter
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=500,
-            chunk_overlap=100,
+            chunk_size=1000,
+            chunk_overlap=200,
             separators=["\n\n", "\n", ".", "!", "?"]
         )
 
@@ -149,8 +153,7 @@ def process_pdf_and_split(file_content, chunk_size=500, chunk_overlap=50):
 
 def create_rag_prompt_template():
     template = """
-You are a helpful assistant. Use only the following context to answer the user's question.
-If the answer cannot be found in the context, respond with "I don't know based on the provided information."
+You are an customer support chatbot for Paragon Digicom Software Company. Use the context to answer the question. If the context lacks specific details add some information from your site to fullfill user customer question.
 
 Context:
 {context}
@@ -162,25 +165,83 @@ Answer:
 """
     return ChatPromptTemplate.from_template(template)
 
-def query_llm_with_rag(query, vector_store, llm, top_k=5):
+def query_llm_with_agent(query, embedding_function, openai_api_key, pdf_hash, namespace, top_k=5, extra_filter=None,history=[]):
+    
     try:
-        # Retrieve relevant chunks
-        retriever = vector_store.as_retriever(search_kwargs={"k": top_k})
+        search_kwargs = {"k": top_k, "filter": extra_filter or {}}
 
-        retrieved_docs = retriever.get_relevant_documents(query)
-
-        context = "\n\n".join([doc.page_content for doc in retrieved_docs]) if retrieved_docs else "No relevant context found."
+        if pdf_hash:
+            search_kwargs["filter"]["doc_hash"] = {"$eq": pdf_hash}
         
-        # Create prompt and chain
-        prompt_template = create_rag_prompt_template()
-
-        chain = prompt_template | llm | StrOutputParser()
+        retriever = PineconeVectorStore(
+            index_name="rag-index",
+            embedding=embedding_function,
+            namespace=namespace
+        ).as_retriever(search_kwargs=search_kwargs)
         
-        # Run the chain
-        response = chain.invoke({"query": query, "context": context})
-        return response.strip()
+        # Build conversation from history
+        conversation_history = []
+        for h in history:
+            conversation_history.append((h["role"], h["content"]))
+        
+        
+        def search_documents(q: str) -> str:
+            docs = retriever.invoke(q)
+            if not docs:
+                raise ValueError("No data found for this company and hash.")
+            return "\n\n".join([doc.page_content for doc in docs])
+
+        tools = [
+            Tool.from_function(
+                func=search_documents,
+                name="search_documents",
+                description="Useful for answering questions about uploaded PDF documents."
+            )
+        ]
+        
+        # Build the agent
+        llm = ChatOpenAI(
+            model_name="gpt-4o-mini",
+            openai_api_key=openai_api_key,
+            temperature=0.7,
+        )
+        
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", 
+             "You are a helpful and knowledgeable assistant. "
+             "Your goal is to answer user questions accurately and concisely, using only the provided context. "
+             "If the answer cannot be found within the given context, state that you do not have enough information. "
+             "Keep answers to 2-3 sentences unless necessary."
+            ),
+            ("system", f"Conversation so far:\n{conversation_history}"),
+            ("user", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad")
+        ])
+        
+        agent = create_openai_functions_agent(
+            llm=llm,
+            tools=tools,
+            prompt=prompt
+        )
+
+        agent_executor = AgentExecutor.from_agent_and_tools(
+            agent=agent,
+            tools=tools,
+            verbose=True,
+            handle_parsing_errors=True
+        )
+        
+        try:
+            response = agent_executor.invoke({"input": query})
+        except ValueError as e:
+            if "NO_CONTEXT_FOUND" in str(e):
+                return "No relevant information found for this company or document."
+            raise
+        return response.get("output", "No response generated.")
+
     except Exception as e:
-        return f"Error querying LLM: {str(e)}"
+        return f"Error querying LLM agent: {str(e)}"
+
       
 def get_pdf_hash(file_bytes:bytes)->str:
     return hashlib.sha256(file_bytes).hexdigest()

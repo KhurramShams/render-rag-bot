@@ -9,3 +9,6 @@ requests
 pdfplumber==0.11.4
 python-multipart
 pydantic
+langchain-core>=0.1.35
+bs4
+redis
