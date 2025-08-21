@@ -213,8 +213,9 @@ async def ask(request: AskRequest):
             pdf_hash=pdf_hash,
             namespace=namespace,
             top_k=5,
-            extra_filter={"company_id": {"$eq": request.company_id}},  # New param
-            history=history
+            extra_filter={"company_id": {"$eq": request.company_id}},
+            history=history,
+            company_id=request.company_id,
         )
         
         save_chat_history(session_id, "user", question)
@@ -231,6 +232,43 @@ async def ask(request: AskRequest):
 class DeleteRequest(BaseModel):
     hash: Optional[str] = None
     company_id: Optional[str] = None
+
+
+# @app.delete("/delete_pdf_vectors/")
+# async def delete_pdf_vectors(request: DeleteRequest):
+    
+#     pdf_hash = request.hash.strip()
+#     company_id = request.company_id.strip()
+
+#     if not pdf_hash:
+#         raise HTTPException(status_code=400, detail="Missing PDF hash.")
+    
+#        # Step 1: Check if hash exists in Pinecone
+#     try:
+#         index = pc.Index("rag-index")
+#         result = index.query(
+#             vector=[0.0] * 1536,  # dummy vector, just to filter
+#             top_k=1,
+#             filter={"doc_hash": {"$eq": pdf_hash}}
+#         )
+#         if len(result.matches) == 0:
+#             raise HTTPException(status_code=400, detail="API Hash Invalid / No Data found for API Hash")
+#     except Exception as e:
+#         logger.error(f"API Hash Invalid / No Data found for API Hash : {e}")
+#         raise HTTPException(status_code=500, detail=f"API Hash Invalid / No Data found for API Hash : {e}")
+
+#     try:
+#         index = pc.Index("rag-index")
+#         # Delete all vectors with this doc_hash
+#         index.delete(
+#             delete_all=False,
+#             filter={"doc_hash": {"$eq": pdf_hash}}
+#         )
+#         logger.info(f"Deleted vectors for hash: {pdf_hash}")
+#         return {"deleted": True, "hash": pdf_hash, "msg": "Vectors deleted successfully."}
+#     except Exception as e:
+#         logger.error(f"Error deleting vectors: {e}")
+#         raise HTTPException(status_code=500, detail=f"Error deleting vectors: {e}")
 
 @app.delete("/delete_pdf_vectors/")
 async def delete_pdf_vectors(request: DeleteRequest):
