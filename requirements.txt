@@ -12,3 +12,5 @@ pydantic
 langchain-core>=0.1.35
 bs4
 redis
+langchain_community
+rank_bm25
