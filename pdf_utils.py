@@ -12,6 +12,10 @@ from io import BytesIO
 from langchain_core.tools import Tool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.agents import Tool, AgentExecutor, create_openai_functions_agent
+from langchain.retrievers import EnsembleRetriever
+from langchain_community.retrievers import BM25Retriever
+import json
+from pathlib import Path
 
 
 
@@ -21,6 +25,27 @@ COMPANY_NAMESPACES = {
     "DigiRoam": "tenant_digiroam",
     "DigiCom": "tenant_digicom",
     "DigiTech": "tenant_digitech",
+}
+
+COMPANY_PROMPTS = {
+    "DigiRoam": (
+        "You are an customer support agent for Paragon RoamDigi. "
+        "Always answer questions accurately and concisely using the provided context. "
+        "If the context lacks specific details add some information from your site to fullfill user customer question. "
+        "Keep responses short (2–3 sentences) and professional."
+    ),
+    "DigiCom": (
+        "You are the customer support agent for Paragon DigiCom. "
+        "Your role is to help users with accurate, context-based answers about Paragon DigiCom using the provided context. "
+        "If the context lacks specific details add some information from your site to fullfill user customer question. "
+        "Keep responses short, clear, and user-friendly."
+    ),
+    "DigiTech": (
+        "You are an customer support agent for Paragon DigiTech. "
+        "Use the provided context to answer questions about DigiTech’s services and products. "
+        "If the context lacks specific details add some information from your site to fullfill user customer question. "
+        "Keep answers focused, helpful, and limited to 2–3 sentences."
+    )
 }
 
 # Setup logging
@@ -103,6 +128,18 @@ def store_chunks_in_pinecone(chunks, embedding_function, company_id,index_name="
             metadatas=metadatas
         )
 
+        storage_dir = Path("./local_chunks")
+        storage_dir.mkdir(exist_ok=True)
+        file_path = storage_dir / f"{company_id}.json"
+
+        if file_path.exists():
+            existing = json.loads(file_path.read_text())
+        else:
+            existing = []
+
+        existing.extend(chunks)
+        file_path.write_text(json.dumps(existing, indent=2))
+
         logger.info(f"Stored {len(chunks)} chunks in Pinecone under namespace '{namespace}'")
         return vector_store
     except Exception as e:
@@ -151,29 +188,31 @@ def process_pdf_and_split(file_content, chunk_size=1000, chunk_overlap=200):
     except Exception as e:
         raise ValueError(f"Error processing PDF: {str(e)}")
 
-def create_rag_prompt_template():
-    template = """
-You are an customer support chatbot for Paragon Digicom Software Company. Use the context to answer the question. If the context lacks specific details add some information from your site to fullfill user customer question.
 
-Context:
-{context}
+def load_docs_for_company(company_id):
+    file_path = Path(f"./local_chunks/{company_id}.json")
+    if file_path.exists():
+        return json.loads(file_path.read_text())
+    return []
 
-User Question:
-{query}
-
-Answer:
-"""
-    return ChatPromptTemplate.from_template(template)
-
-def query_llm_with_agent(query, embedding_function, openai_api_key, pdf_hash, namespace, top_k=5, extra_filter=None,history=[]):
+def query_llm_with_agent(query, embedding_function, openai_api_key, pdf_hash, namespace, top_k=3, extra_filter=None , history=[], company_id=''):
     
     try:
-        search_kwargs = {"k": top_k, "filter": extra_filter or {}}
+
+        system_prompt = COMPANY_PROMPTS.get(
+            company_id,
+            "You are a helpful customer suppport assistant. Answer accurately using only the provided context."
+        )
+        search_kwargs = {"k": top_k}
+
+        filter_conditions = {"company_id": {"$eq": company_id}}
 
         if pdf_hash:
-            search_kwargs["filter"]["doc_hash"] = {"$eq": pdf_hash}
+            filter_conditions["doc_hash"] = {"$eq": pdf_hash}
+
+        search_kwargs["filter"] = filter_conditions
         
-        retriever = PineconeVectorStore(
+        vector_retriever = PineconeVectorStore(
             index_name="rag-index",
             embedding=embedding_function,
             namespace=namespace
@@ -184,6 +223,18 @@ def query_llm_with_agent(query, embedding_function, openai_api_key, pdf_hash, na
         for h in history:
             conversation_history.append((h["role"], h["content"]))
         
+        
+        docs_texts = load_docs_for_company(company_id)
+        bm25_retriever = BM25Retriever.from_texts(docs_texts)
+
+        retriever = EnsembleRetriever(
+            retrievers=[vector_retriever, bm25_retriever],
+            weights=[0.7, 0.3]
+        )
+
+        print(system_prompt)
+        print(conversation_history)
+        print("data", retriever)
         
         def search_documents(q: str) -> str:
             docs = retriever.invoke(q)
@@ -207,12 +258,7 @@ def query_llm_with_agent(query, embedding_function, openai_api_key, pdf_hash, na
         )
         
         prompt = ChatPromptTemplate.from_messages([
-            ("system", 
-             "You are a helpful and knowledgeable assistant. "
-             "Your goal is to answer user questions accurately and concisely, using only the provided context. "
-             "If the answer cannot be found within the given context, state that you do not have enough information. "
-             "Keep answers to 2-3 sentences unless necessary."
-            ),
+            ("system", system_prompt),
             ("system", f"Conversation so far:\n{conversation_history}"),
             ("user", "{input}"),
             MessagesPlaceholder(variable_name="agent_scratchpad")
