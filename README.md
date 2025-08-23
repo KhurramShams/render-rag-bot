@@ -1,8 +1,8 @@
 <!-- ------------------------------------------------------------------- -->
-<!--    Multi-Tenant RAG API – README                                    -->
+<!--    DocuChat RAG API – README                                    -->
 <!-- ------------------------------------------------------------------- -->
 
-<h1 align="center">Multi-Tenant RAG API 🤖📚</h1>
+<h1 align="center">DocuChat RAG API 🤖📚</h1>
 <h4 align="center">AI-powered support chat for multiple companies, backed by PDFs + WordPress integration</h4>
 
 <p align="center">
@@ -14,7 +14,7 @@
 
 ## ✨ What is this?
 
-**Multi-Tenant RAG API** is a **FastAPI backend** that powers customer-support chatbots for different companies (e.g., DigiRoam, DigiCom, DigiTech).  
+**DocuChat RAG API** is a **FastAPI backend** that powers customer-support chatbots for different companies (e.g., DigiRoam, DigiCom, DigiTech).  
 
 - Upload company PDFs 📂  
 - Store & index embeddings in **Pinecone**  
@@ -49,8 +49,8 @@
 ### 🧑‍💻 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/multi-tenant-rag-api.git
-cd multi-tenant-rag-api
+git clone https://github.com/KhurramShams/render-rag-bot.git
+cd render-rag-bot
 ````
 
 ---
@@ -82,10 +82,10 @@ Create a `.env` file in the root directory of the project and add:
 
 ```env
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-PINECONE_API_KEY=pcd-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-REDIS_HOST=localhost      # or your Redis Cloud host
-REDIS_PORT=6379
-REDIS_PASSWORD=your_redis_password
+PINECONE_API_KEY=pcd-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+DOCS_USERNAME = "...."  # use for Doc end-point access
+DOCS_PASSWORD = "...."   # use for Doc end-point access
+REDIS_URL=redis-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    # or your Redis Cloud API
 ```
 
 ⚠️ Make sure `.env` is listed in `.gitignore` to avoid committing sensitive keys.
@@ -123,7 +123,7 @@ Form data:
 ```json
 {
   "file": "<PDF file>",
-  "company_id": "paragondigitech.com"
+  "company_id": "Domain-Name"
 }
 ```
 
@@ -146,7 +146,7 @@ Response:
 
 ```json
 {
-  "company_id": "paragondigitech.com",
+  "company_id": "Domain-Name",
   "question": "What services does DigiTech provide?",
   "session_id": "user12345",
   "hash": ""
@@ -177,7 +177,7 @@ Delete by **hash** or entire **company**.
 
 # Option 2: delete all PDFs for a company
 {
-  "company_id": "paragondigitech.com"
+  "company_id": "Domain-Name"
 }
 ```
 
@@ -190,19 +190,6 @@ Delete by **hash** or entire **company**.
 * If the user reloads the WordPress site → new session starts fresh.
 
 ---
-
-## 🏗️ Deployment
-
-### On Linux Server
-
-1. Install dependencies:
-
-   ```bash
-   sudo apt update && sudo apt install python3-pip python3-venv -y
-   ```
-2. Install & run Redis (or use Redis Cloud).
-3. Deploy API with **Uvicorn/Gunicorn + Nginx** as reverse proxy.
-4. WordPress plugin points to `/ask/` endpoint.
 
 ---
 
