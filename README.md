@@ -1,9 +1,3 @@
-Got it ✅
-Here’s the **full combined README.md** (all sections integrated into one clean document).
-
----
-
-````markdown
 <!-- ------------------------------------------------------------------- -->
 <!--    Multi-Tenant RAG API – README                                    -->
 <!-- ------------------------------------------------------------------- -->
@@ -241,10 +235,3 @@ sequenceDiagram
 MIT License © 2025
 
 ---
-
-```
-
----
-
-Would you like me to also add a **sample `.env.example` file** in the repo (so new developers know exactly what variables to set), or just keep instructions inside README?
-```
