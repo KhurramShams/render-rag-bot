@@ -1,8 +1,8 @@
 <!-- ------------------------------------------------------------------- -->
-<!--    DocuChat RAG API – README                                    -->
+<!--    DocuChat RAG Application – README                                    -->
 <!-- ------------------------------------------------------------------- -->
 
-<h1 align="center">DocuChat RAG API 🤖📚</h1>
+<h1 align="center">DocuChat RAG Application 🤖📚</h1>
 <h4 align="center">AI-powered support chat for multiple companies, backed by PDFs + WordPress integration</h4>
 
 <p align="center">
@@ -14,7 +14,7 @@
 
 ## ✨ What is this?
 
-**DocuChat RAG API** is a **FastAPI backend** that powers customer-support chatbots for different companies (e.g., DigiRoam, DigiCom, DigiTech).  
+**DocuChat** is a **FastAPI backend** that powers customer-support chatbots for different companies (e.g., DigiRoam, DigiCom, DigiTech).  
 
 - Upload company PDFs 📂  
 - Store & index embeddings in **Pinecone**  
