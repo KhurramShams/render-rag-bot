@@ -24,7 +24,7 @@
 
 |                      |                                                                                  |
 |----------------------|----------------------------------------------------------------------------------|
-| **Use case**         | Multi-company support chatbots linked to each WordPress site                     |
+| **Use case**         | Support chatbot agent linked to each WordPress site                     |
 | **Tech stack**       | FastAPI · LangChain · OpenAI · Pinecone · Redis · pdfplumber                     |
 | **Status**           | **Stable v1.0** – optimized for production deployment on Linux servers           |
 
