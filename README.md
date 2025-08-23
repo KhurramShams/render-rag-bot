@@ -3,7 +3,7 @@
 <!-- ------------------------------------------------------------------- -->
 
 <h1 align="center">DocuChat RAG Application 🤖📚</h1>
-<h4 align="center">AI-powered support chat for multiple companies, backed by PDFs + WordPress integration</h4>
+<h4 align="center">AI-powered support chat agents for multiple companies, backed by PDFs + WordPress integration</h4>
 
 <p align="center">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.110+-green">
@@ -14,7 +14,7 @@
 
 ## ✨ What is this?
 
-**DocuChat** is a **FastAPI backend** that powers customer-support chatbots for different companies (e.g., DigiRoam, DigiCom, DigiTech).  
+**DocuChat** is a **FastAPI backend** that powers customer-support chatbot agents for different companies (e.g., DigiRoam, DigiCom, DigiTech).  
 
 - Upload company PDFs 📂  
 - Store & index embeddings in **Pinecone**  
@@ -49,8 +49,8 @@
 ### 🧑‍💻 1. Clone the Repository
 
 ```bash
-git clone https://github.com/KhurramShams/DocuChat-RAG-Application.git
-cd DocuChat-RAG-Application
+git clone https://github.com/KhurramShams/DocuChat-RAG-Application-FastAPI.git
+cd DocuChat-RAG-Application-FastAPI
 ````
 
 ---
