@@ -49,8 +49,8 @@
 ### 🧑‍💻 1. Clone the Repository
 
 ```bash
-git clone https://github.com/KhurramShams/render-rag-bot.git
-cd render-rag-bot
+git clone https://github.com/KhurramShams/DocuChat-RAG-Application.git
+cd DocuChat-RAG-Application
 ````
 
 ---
